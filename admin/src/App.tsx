@@ -2,7 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Statements from "./pages/Statements";
 import Games from "./pages/Games";
@@ -14,9 +16,129 @@ import Experiments from "./pages/Experiments";
 import Moderation from "./pages/Moderation";
 import Config from "./pages/Config";
 import ProTrials from "./pages/ProTrials";
+import Notifications from "./pages/Notifications";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function AppRoutes() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
+      />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/statements"
+        element={
+          <ProtectedRoute>
+            <Statements />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/games"
+        element={
+          <ProtectedRoute>
+            <Games />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chains"
+        element={
+          <ProtectedRoute>
+            <ViralChains />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <Analytics />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monetization"
+        element={
+          <ProtectedRoute>
+            <Monetization />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/experiments"
+        element={
+          <ProtectedRoute>
+            <Experiments />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/moderation"
+        element={
+          <ProtectedRoute>
+            <Moderation />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/config"
+        element={
+          <ProtectedRoute>
+            <Config />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro-trials"
+        element={
+          <ProtectedRoute>
+            <ProTrials />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <Notifications />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,20 +146,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/statements" element={<Statements />} />
-          <Route path="/games" element={<Games />} />
-          <Route path="/chains" element={<ViralChains />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/monetization" element={<Monetization />} />
-          <Route path="/experiments" element={<Experiments />} />
-          <Route path="/moderation" element={<Moderation />} />
-          <Route path="/config" element={<Config />} />
-          <Route path="/pro-trials" element={<ProTrials />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

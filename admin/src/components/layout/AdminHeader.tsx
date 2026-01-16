@@ -2,6 +2,7 @@ import { Search, Bell, Sun, Moon, Command } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface AdminHeaderProps {
   title: string;
@@ -10,6 +11,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
   const [isDark, setIsDark] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Default to dark mode
@@ -19,6 +21,10 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
   const toggleTheme = () => {
     setIsDark(!isDark);
     document.documentElement.classList.toggle("dark");
+  };
+
+  const handleNotificationsClick = () => {
+    navigate("/notifications");
   };
 
   return (
@@ -61,6 +67,7 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
           variant="ghost"
           size="icon"
           className="relative text-muted-foreground hover:text-foreground"
+          onClick={handleNotificationsClick}
         >
           <Bell className="w-5 h-5" />
           <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full" />

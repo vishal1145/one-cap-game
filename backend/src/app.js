@@ -13,6 +13,9 @@ import { fileURLToPath } from "url";
 import authRoutes from "./modules/auth/auth.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
 import chainRoutes from "./modules/chains/chain.routes.js";
+import challengeRoutes from "./modules/challenges/challenge.routes.js";
+import statementRoutes from "./modules/statements/statement.routes.js";
+import notificationRoutes from "./modules/notifications/notification.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,3 +59,6 @@ await app.register(swaggerUI, {
 await app.register(authRoutes);
 await app.register(userRoutes);
 await app.register(chainRoutes);
+await app.register(challengeRoutes);
+await app.register(statementRoutes);
+await app.register(notificationRoutes);

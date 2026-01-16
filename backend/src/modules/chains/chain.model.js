@@ -46,12 +46,12 @@ const ChainSchema = new mongoose.Schema(
     // 📊 Counters (VERY IMPORTANT)
     total_challenges: {
       type: Number,
-      default: 1,
+      default: 0,
     },
 
     total_participants: {
       type: Number,
-      default: 1,
+      default: 0,
     },
 
     // 🔥 Viral metrics (admin / analytics)

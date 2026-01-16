@@ -1,5 +1,6 @@
 import Chain from "./chain.model.js";
 import User from "../users/user.model.js";
+import { notifyChainCreated } from "../../utils/notifications.js";
 
 export const createChain = async (userId, payload) => {
   const chain = await Chain.create({
@@ -8,6 +9,18 @@ export const createChain = async (userId, payload) => {
   });
 
   await User.findByIdAndUpdate(userId, { $push: { chains: chain._id } });
+
+  // Get user info for notification
+  const user = await User.findById(userId).select("username").lean();
+  
+  // Create notification for new chain
+  await notifyChainCreated(
+    chain._id.toString(),
+    chain.title,
+    userId.toString(),
+    user?.username || "User"
+  );
+
   return chain;
 };
 
@@ -42,6 +55,7 @@ export const getChains = async ({ user, filters }) => {
 
   const [chains, total] = await Promise.all([
     Chain.find(query)
+      .populate("starter_id", "username")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))

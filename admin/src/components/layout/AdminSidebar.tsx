@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -37,6 +38,26 @@ const navItems = [
 export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const getInitials = (username?: string, email?: string) => {
+    if (username) {
+      return username.substring(0, 2).toUpperCase();
+    }
+    if (email) {
+      return email.substring(0, 2).toUpperCase();
+    }
+    return "AD";
+  };
+
+  const displayName = user?.username || user?.email?.split("@")[0] || "Admin";
+  const displayEmail = user?.email || "admin@test.com";
 
   return (
     <aside
@@ -95,9 +116,11 @@ export function AdminSidebar() {
       {/* Bottom Actions */}
       <div className="p-3 border-t border-sidebar-border space-y-2">
         {/* Notifications */}
-        <button
+        <NavLink
+          to="/notifications"
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
+            location.pathname === "/notifications" && "bg-sidebar-accent",
             collapsed && "justify-center"
           )}
         >
@@ -106,7 +129,7 @@ export function AdminSidebar() {
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
           </div>
           {!collapsed && <span className="text-sm font-medium">Notifications</span>}
-        </button>
+        </NavLink>
 
         {/* Collapse Button */}
         <Button
@@ -125,6 +148,20 @@ export function AdminSidebar() {
           )}
         </Button>
 
+        {/* Logout Button */}
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "default"}
+          onClick={handleLogout}
+          className={cn(
+            "w-full justify-start text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive",
+            collapsed && "justify-center"
+          )}
+        >
+          <LogOut className="w-5 h-5" />
+          {!collapsed && <span className="ml-2">Logout</span>}
+        </Button>
+
         {/* User Profile */}
         <div
           className={cn(
@@ -132,13 +169,21 @@ export function AdminSidebar() {
             collapsed && "justify-center"
           )}
         >
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-            SA
-          </div>
+          {user?.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt={displayName}
+              className="w-8 h-8 rounded-full object-cover shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+              {getInitials(user?.username, user?.email)}
+            </div>
+          )}
           {!collapsed && (
             <div className="flex-1 min-w-0 animate-fade-in">
-              <p className="text-sm font-medium truncate">Super Admin</p>
-              <p className="text-xs text-muted-foreground truncate">admin@onecap.io</p>
+              <p className="text-sm font-medium truncate">{displayName}</p>
+              <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
             </div>
           )}
         </div>

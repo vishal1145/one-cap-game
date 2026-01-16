@@ -26,7 +26,7 @@ const ChallengeSchema = new mongoose.Schema(
         chain_id: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Chain",
-            required: true,
+            default: null,
             index: true,
         },
 
@@ -91,11 +91,11 @@ const ChallengeSchema = new mongoose.Schema(
         status: {
             type: String,
             enum: Object.values(CHALLENGE_STATUS),
-            default: CHALLENGE_STATUS.ACTIVE,
+            default: CHALLENGE_STATUS.DRAFT,
             index: true,
         },
 
-        is_reported: {
+        is_reported: {  
             type: Boolean,
             default: false,
             index: true,

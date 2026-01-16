@@ -5,6 +5,7 @@ import { USER_ROLES } from "../../constants/enums.js";
 import { verifyGoogleToken } from "../../utils/google.js";
 import { hashPassword } from "../../utils/password.js";
 import Otp from "./otp.model.js";
+import { notifyUserRegistration } from "../../utils/notifications.js";
 
 export const registerUser = async ({ username, email, password, role }) => {
     const existing = await User.findOne({
@@ -36,6 +37,9 @@ export const registerUser = async ({ username, email, password, role }) => {
             userId: user._id,
             role: user.role,
         });
+
+        // Create notification for new user registration
+        await notifyUserRegistration(user._id.toString(), user.username);
 
         return { user, token };
     } catch (err) {
@@ -112,6 +116,9 @@ export const googleLogin = async ({ idToken }) => {
             auth_provider: "google",
             auth_provider_id: googleUser.sub,
         });
+
+        // Create notification for new user registration
+        await notifyUserRegistration(user._id.toString(), user.username);
     }
 
     user.last_login_at = new Date();
@@ -134,7 +141,11 @@ export const appleLogin = async ({ appleSub, email }) => {
             auth_provider: "apple",
             auth_provider_id: appleSub,
             username: `apple_${appleSub.slice(0, 6)}`,
+            avatar_url: `${process.env.BASE_URL}/public/avatars/default-avatar.png`,
         });
+
+        // Create notification for new user registration
+        await notifyUserRegistration(user._id.toString(), user.username);
     }
 
     user.last_login_at = new Date();
@@ -176,7 +187,11 @@ export const verifyOtp = async ({ phone, code }) => {
             phone,
             auth_provider: "phone",
             username: `user_${phone.slice(-4)}`,
+            avatar_url: `${process.env.BASE_URL}/public/avatars/default-avatar.png`,
         });
+
+        // Create notification for new user registration
+        await notifyUserRegistration(user._id.toString(), user.username);
     }
 
     user.last_login_at = new Date();

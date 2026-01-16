@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Filter,
@@ -9,116 +9,236 @@ import {
   TrendingUp,
   AlertTriangle,
   ChevronDown,
+  Loader2,
+  CheckCircle2,
+  X,
+  Clock,
+  Eye,
+  Ban,
 } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import api from "@/api/client";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  status: "active" | "churning" | "inactive";
-  tier: "free" | "pro";
-  gamesPlayed: number;
-  chainsStarted: number;
-  totalShares: number;
-  ltv: number;
-  joinedAt: string;
-  segment: string[];
+interface BackendUser {
+  _id: string;
+  username?: string;
+  email?: string;
+  phone?: string;
+  avatar_url?: string;
+  auth_provider: "phone" | "google" | "apple";
+  role: "user" | "admin";
+  status: "active" | "banned" | "shadow_banned";
+  chains?: Array<{ _id: string; title?: string }>;
+  challenges?: Array<{ _id: string }>;
+  reports?: number;
+  subscription?: string;
+  last_login_at?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-const users: User[] = [
-  {
-    id: "1",
-    name: "Sarah Chen",
-    email: "sarah.chen@email.com",
-    avatar: "SC",
-    status: "active",
-    tier: "pro",
-    gamesPlayed: 847,
-    chainsStarted: 156,
-    totalShares: 2341,
-    ltv: 89.99,
-    joinedAt: "2023-08-15",
-    segment: ["Power User", "Viral Spreader"],
-  },
-  {
-    id: "2",
-    name: "Marcus Johnson",
-    email: "marcus.j@email.com",
-    avatar: "MJ",
-    status: "active",
-    tier: "pro",
-    gamesPlayed: 623,
-    chainsStarted: 89,
-    totalShares: 1567,
-    ltv: 149.99,
-    joinedAt: "2023-09-02",
-    segment: ["High LTV", "Power User"],
-  },
-  {
-    id: "3",
-    name: "Emily Rodriguez",
-    email: "emily.r@email.com",
-    avatar: "ER",
-    status: "churning",
-    tier: "pro",
-    gamesPlayed: 234,
-    chainsStarted: 12,
-    totalShares: 345,
-    ltv: 29.99,
-    joinedAt: "2023-11-20",
-    segment: ["At-Risk"],
-  },
-  {
-    id: "4",
-    name: "James Wilson",
-    email: "j.wilson@email.com",
-    avatar: "JW",
-    status: "active",
-    tier: "free",
-    gamesPlayed: 156,
-    chainsStarted: 45,
-    totalShares: 678,
-    ltv: 0,
-    joinedAt: "2024-01-05",
-    segment: ["Viral Spreader"],
-  },
-  {
-    id: "5",
-    name: "Aisha Patel",
-    email: "aisha.p@email.com",
-    avatar: "AP",
-    status: "inactive",
-    tier: "free",
-    gamesPlayed: 23,
-    chainsStarted: 2,
-    totalShares: 15,
-    ltv: 0,
-    joinedAt: "2024-01-10",
-    segment: [],
-  },
-];
+interface UsersResponse {
+  success: boolean;
+  users: BackendUser[];
+  stats: {
+    total: number;
+    active: number;
+    banned: number;
+    shadow_banned: number;
+  };
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  message: string;
+}
 
 const statusConfig = {
-  active: { label: "Active", color: "text-success", bg: "bg-success/10" },
-  churning: { label: "At Risk", color: "text-warning", bg: "bg-warning/10" },
-  inactive: { label: "Inactive", color: "text-muted-foreground", bg: "bg-muted" },
+  active: { label: "Active", color: "text-success", bg: "bg-success/10", icon: CheckCircle2 },
+  banned: { label: "Banned", color: "text-destructive", bg: "bg-destructive/10", icon: X },
+  shadow_banned: { label: "Shadow_banned", color: "text-warning", bg: "bg-warning/10", icon: Clock },
 };
 
-const segmentConfig: Record<string, { icon: typeof Crown; color: string }> = {
-  "Power User": { icon: Zap, color: "text-primary" },
-  "Viral Spreader": { icon: TrendingUp, color: "text-accent" },
-  "High LTV": { icon: Crown, color: "text-warning" },
-  "At-Risk": { icon: AlertTriangle, color: "text-destructive" },
+const getInitials = (username?: string, email?: string) => {
+  if (username) {
+    return username.substring(0, 2).toUpperCase();
+  }
+  if (email) {
+    return email.substring(0, 2).toUpperCase();
+  }
+  return "??";
 };
 
 export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [roleFilter, setRoleFilter] = useState<string>("user");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [users, setUsers] = useState<BackendUser[]>([]);
+  const [stats, setStats] = useState<UsersResponse["stats"]>({
+    total: 0,
+    active: 0,
+    banned: 0,
+    shadow_banned: 0,
+  });
+  const [pagination, setPagination] = useState<UsersResponse["pagination"]>({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    userId: string;
+    action: "ban" | "shadow" | "unban" | null;
+    userName: string;
+  }>({
+    open: false,
+    userId: "",
+    action: null,
+    userName: "",
+  });
+
+  const fetchUsers = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        role: roleFilter,
+        ...(statusFilter && { status: statusFilter }),
+        ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
+      });
+
+      const response = await api.get(`/admin/users?${params.toString()}`);
+      const data: UsersResponse = response.data;
+
+      if (data.success) {
+        setUsers(data.users);
+        setStats(data.stats);
+        setPagination(data.pagination);
+        // toast({
+        //   title: "Users loaded",
+        //   description: data.message || "Users fetched successfully",
+        // });
+      } else {
+        const errorMsg = data.message || "Failed to fetch users";
+        setError(errorMsg);
+        toast({
+          title: "Error",
+          description: errorMsg,
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || "Failed to fetch users";
+      setError(errorMsg);
+      toast({
+        title: "Error",
+        description: errorMsg,
+        variant: "destructive",
+      });
+      console.error("Error fetching users:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, limit, roleFilter, statusFilter, debouncedSearchQuery, toast]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      // Reset to page 1 when search changes
+      if (page !== 1) {
+        setPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, page]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleStatusChange = async (userId: string, newStatus: "active" | "banned" | "shadow_banned") => {
+    try {
+      const response = await api.put(`/admin/users/${userId}/status`, {
+        status: newStatus,
+      });
+      
+      if (response.data.success) {
+        toast({
+          title: "Status updated",
+          description: response.data.message || "User status updated successfully",
+        });
+        // Refresh users list
+        fetchUsers();
+      } else {
+        toast({
+          title: "Error",
+          description: response.data.message || "Failed to update user status",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || "Failed to update user status";
+      toast({
+        title: "Error",
+        description: errorMsg,
+        variant: "destructive",
+      });
+      console.error("Error updating user status:", err);
+    }
+    setConfirmDialog({ open: false, userId: "", action: null, userName: "" });
+  };
+
+  const openConfirmDialog = (userId: string, action: "ban" | "shadow" | "unban", userName: string) => {
+    setConfirmDialog({ open: true, userId, action, userName });
+  };
 
   return (
     <AdminLayout>
@@ -128,7 +248,7 @@ export default function Users() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Segment Cards */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-card rounded-xl border border-border p-4 hover:border-primary/50 transition-colors cursor-pointer">
             <div className="flex items-center gap-3">
@@ -136,30 +256,23 @@ export default function Users() {
                 <Zap className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">12,450</p>
-                <p className="text-sm text-muted-foreground">Power Users</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.total.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Users</p>
               </div>
             </div>
           </div>
-          <div className="bg-card rounded-xl border border-border p-4 hover:border-accent/50 transition-colors cursor-pointer">
+          <div className="bg-card rounded-xl border border-border p-4 hover:border-success/50 transition-colors cursor-pointer">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-accent" />
+              <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">8,230</p>
-                <p className="text-sm text-muted-foreground">Viral Spreaders</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-card rounded-xl border border-border p-4 hover:border-warning/50 transition-colors cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                <Crown className="w-5 h-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">3,890</p>
-                <p className="text-sm text-muted-foreground">High LTV</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.active.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Active</p>
               </div>
             </div>
           </div>
@@ -169,8 +282,23 @@ export default function Users() {
                 <AlertTriangle className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">1,245</p>
-                <p className="text-sm text-muted-foreground">At-Risk Churn</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.banned.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Banned</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card rounded-xl border border-border p-4 hover:border-warning/50 transition-colors cursor-pointer">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.shadow_banned.toLocaleString()}
+                </p>
+                <p className="text-sm text-muted-foreground">Shadow Banned</p>
               </div>
             </div>
           </div>
@@ -188,132 +316,321 @@ export default function Users() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon">
-              <Filter className="w-4 h-4" />
-            </Button>
+
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline">
+            <Select
+              value={statusFilter || "all"}
+              onValueChange={(value) => setStatusFilter(value === "all" ? "" : value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="banned">Banned</SelectItem>
+                <SelectItem value="shadow_banned">Shadow Banned</SelectItem>
+              </SelectContent>
+            </Select>
+            {/* <Button variant="outline">
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
             <Button variant="outline">
               Bulk Actions
               <ChevronDown className="w-4 h-4 ml-2" />
-            </Button>
+            </Button> */}
           </div>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr className="bg-muted/30">
-                  <th>User</th>
-                  <th>Status</th>
-                  <th>Tier</th>
-                  <th>Games</th>
-                  <th>Chains</th>
-                  <th>Shares</th>
-                  <th>LTV</th>
-                  <th>Segments</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="group">
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-                          {user.avatar}
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {user.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {user.email}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        className={cn(
-                          "inline-flex px-2 py-1 rounded text-xs font-medium",
-                          statusConfig[user.status].bg,
-                          statusConfig[user.status].color
-                        )}
-                      >
-                        {statusConfig[user.status].label}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium uppercase",
-                          user.tier === "pro"
-                            ? "bg-warning/10 text-warning"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {user.tier === "pro" && <Crown className="w-3 h-3" />}
-                        {user.tier}
-                      </span>
-                    </td>
-                    <td className="font-medium">
-                      {user.gamesPlayed.toLocaleString()}
-                    </td>
-                    <td className="font-medium">{user.chainsStarted}</td>
-                    <td className="font-medium">
-                      {user.totalShares.toLocaleString()}
-                    </td>
-                    <td className="font-medium">
-                      {user.ltv > 0 ? `$${user.ltv.toFixed(2)}` : "—"}
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {user.segment.length > 0 ? (
-                          user.segment.slice(0, 2).map((seg) => {
-                            const config = segmentConfig[seg];
-                            if (!config) return null;
-                            const Icon = config.icon;
-                            return (
-                              <div
-                                key={seg}
-                                className={cn(
-                                  "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs",
-                                  config.color
-                                )}
-                                title={seg}
-                              >
-                                <Icon className="w-3 h-3" />
+          {users.length === 0 && !isLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              No users found
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
+                    <tr className="bg-muted/30">
+                      <th>User</th>
+                      <th>Status</th>
+                      <th>Challenges</th>
+                      <th>Reports</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                      <tr key={user._id} className="group">
+                        <td>
+                          <div className="flex items-center gap-3">
+                            {user.avatar_url ? (
+                              <img
+                                src={user.avatar_url}
+                                alt={user.username || user.email || "User"}
+                                className="w-9 h-9 rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+                                {getInitials(user.username, user.email)}
                               </div>
+                            )}
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {user.username || user.email || user.phone || "N/A"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {user.email || user.phone || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {(() => {
+                            const config = statusConfig[user.status];
+                            const Icon = config?.icon;
+                            return (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium",
+                                  config?.bg || "bg-muted",
+                                  config?.color || "text-muted-foreground"
+                                )}
+                              >
+                                {Icon && <Icon className="w-3 h-3" />}
+                                {config?.label || user.status}
+                              </span>
                             );
-                          })
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          })()}
+                        </td>
+                        <td className="font-medium">
+                          {user.challenges?.length || 0}
+                        </td>
+                        <td className="font-medium">
+                          {user.reports || 0}
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            {user.status === "active" ? (
+                              <>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => openConfirmDialog(user._id, "ban", user.username || user.email || "User")}
+                                  className="h-7 text-xs"
+                                >
+                                  <Ban className="w-3 h-3" />
+                                  Ban
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openConfirmDialog(user._id, "shadow", user.username || user.email || "User")}
+                                  className="h-7 text-xs border-warning text-warning hover:bg-warning/10"
+                                >
+                                  <Clock className="w-3 h-3" />
+                                  Shadow
+                                </Button>
+                                {/* <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  View
+                                </Button> */}
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openConfirmDialog(user._id, "unban", user.username || user.email || "User")}
+                                  className="h-7 text-xs border-success text-success hover:bg-success/10"
+                                >
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Unban
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  View
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="border-t border-border p-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
+                      {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+                      {pagination.total} users
+                    </div>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (pagination.page > 1) {
+                                handlePageChange(pagination.page - 1);
+                              }
+                            }}
+                            className={cn(
+                              pagination.page === 1 && "pointer-events-none opacity-50"
+                            )}
+                          />
+                        </PaginationItem>
+
+                        {(() => {
+                          const pages: (number | "ellipsis")[] = [];
+                          const maxVisible = 7;
+                          const { page, totalPages } = pagination;
+
+                          if (totalPages <= maxVisible) {
+                            for (let i = 1; i <= totalPages; i++) {
+                              pages.push(i);
+                            }
+                          } else {
+                            pages.push(1);
+
+                            if (page > 3) {
+                              pages.push("ellipsis");
+                            }
+
+                            const start = Math.max(2, page - 1);
+                            const end = Math.min(totalPages - 1, page + 1);
+
+                            for (let i = start; i <= end; i++) {
+                              pages.push(i);
+                            }
+
+                            if (page < totalPages - 2) {
+                              pages.push("ellipsis");
+                            }
+
+                            pages.push(totalPages);
+                          }
+
+                          return pages.map((p, index) => {
+                            if (p === "ellipsis") {
+                              return (
+                                <PaginationItem key={`ellipsis-${index}`}>
+                                  <PaginationEllipsis />
+                                </PaginationItem>
+                              );
+                            }
+
+                            return (
+                              <PaginationItem key={p}>
+                                <PaginationLink
+                                  href="#"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handlePageChange(p);
+                                  }}
+                                  isActive={page === p}
+                                >
+                                  {p}
+                                </PaginationLink>
+                              </PaginationItem>
+                            );
+                          });
+                        })()}
+
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (pagination.page < pagination.totalPages) {
+                                handlePageChange(pagination.page + 1);
+                              }
+                            }}
+                            className={cn(
+                              pagination.page === pagination.totalPages && "pointer-events-none opacity-50"
+                            )}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDialog.action === "ban" && "Ban User"}
+              {confirmDialog.action === "shadow" && "Shadow Ban User"}
+              {confirmDialog.action === "unban" && "Unban User"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.action === "ban" && (
+                <>Are you sure you want to ban <strong>{confirmDialog.userName}</strong>? This action will restrict their access to the platform.</>
+              )}
+              {confirmDialog.action === "shadow" && (
+                <>Are you sure you want to shadow ban <strong>{confirmDialog.userName}</strong>? This will limit their visibility without their knowledge.</>
+              )}
+              {confirmDialog.action === "unban" && (
+                <>Are you sure you want to unban <strong>{confirmDialog.userName}</strong>? This will restore their access to the platform.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmDialog.action === "ban") {
+                  handleStatusChange(confirmDialog.userId, "banned");
+                } else if (confirmDialog.action === "shadow") {
+                  handleStatusChange(confirmDialog.userId, "shadow_banned");
+                } else if (confirmDialog.action === "unban") {
+                  handleStatusChange(confirmDialog.userId, "active");
+                }
+              }}
+              className={cn(
+                confirmDialog.action === "ban" && "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+                confirmDialog.action === "shadow" && "bg-warning text-warning-foreground hover:bg-warning/90",
+                confirmDialog.action === "unban" && "bg-success text-success-foreground hover:bg-success/90"
+              )}
+            >
+              {confirmDialog.action === "ban" && "Ban User"}
+              {confirmDialog.action === "shadow" && "Shadow Ban"}
+              {confirmDialog.action === "unban" && "Unban User"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

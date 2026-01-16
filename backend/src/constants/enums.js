@@ -33,6 +33,7 @@ export const CHALLENGE_STATUS = {
     ACTIVE: "active",
     REPORTED: "reported",
     REMOVED: "removed",
+    DRAFT: "draft",
 };
 
 // SUBSCRIPTION
@@ -53,4 +54,37 @@ export const REPORT_REASON = {
     SPAM: "spam",
     HARASSMENT: "harassment",
     MISINFORMATION: "misinformation",
+};
+
+// STATEMENT
+export const STATEMENT_TYPE = {
+    TRUTH: "truth",
+    CAP: "cap",
+};
+
+export const STATEMENT_DIFFICULTY = {
+    EASY: "easy",
+    MEDIUM: "medium",
+    HARD: "hard",
+};
+
+export const STATEMENT_STATUS = {
+    LIVE: "live",
+    DRAFT: "draft",
+    RETIRED: "retired",
+};
+
+// NOTIFICATION
+export const NOTIFICATION_TYPE = {
+    SUCCESS: "success",
+    WARNING: "warning",
+    INFO: "info",
+    ERROR: "error",
+};
+
+export const NOTIFICATION_CATEGORY = {
+    SYSTEM: "system",
+    USER: "user",
+    MODERATION: "moderation",
+    ANALYTICS: "analytics",
 };
