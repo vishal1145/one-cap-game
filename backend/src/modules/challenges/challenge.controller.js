@@ -5,16 +5,8 @@ export const createChallenge = async (req, reply) => {
     const userId = req.user.userId;
     const payload  = req.body;
 
-    // if (!chain_id) {
-    //   return reply.code(400).send({
-    //     success: false,
-    //     message: "chain_id is required",
-    //   });
-    // }
-
     const challenge = await ChallengeService.createChallenge(
       userId,
-      // chain_id,
       payload
     );
 
@@ -103,6 +95,27 @@ export const shareChallenge = async (req, reply) => {
       success: true,
       challenge,
       message: "Challenge shared successfully",
+    });
+  } catch (err) {
+    return reply.code(400).send({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const submitGuessChallenge = async (req, reply) => {
+  try {
+    const guess = await ChallengeService.submitGuessChallenge({
+      challengeId: req.params.id,
+      userId: req.user.userId,
+      selectedIndex: req.body.selected_index,
+    });
+
+    return reply.send({
+      success: true,
+      guess,
+      message: "Guess submitted successfully",
     });
   } catch (err) {
     return reply.code(400).send({

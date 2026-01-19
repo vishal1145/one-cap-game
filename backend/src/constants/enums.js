@@ -34,12 +34,19 @@ export const CHALLENGE_STATUS = {
     REPORTED: "reported",
     REMOVED: "removed",
     DRAFT: "draft",
+    MUTED: "muted",
 };
 
 // SUBSCRIPTION
 export const SUBSCRIPTION_PLAN = {
     FREE: "free",
     PRO: "pro",
+    TRIAL: "trial",
+};
+
+export const SUBSCRIPTION_PLAN_TYPE = {
+    MONTHLY: "monthly",
+    YEARLY: "yearly",
 };
 
 export const SUBSCRIPTION_STATUS = {
@@ -48,12 +55,38 @@ export const SUBSCRIPTION_STATUS = {
     EXPIRED: "expired",
 };
 
+export const PAYMENT_PROVIDER = {
+    PLAYSTORE: "playstore",
+    APPSTORE: "appstore",
+    STRIPE: "stripe",
+};
+
 // ADMIN / MODERATION
 export const REPORT_REASON = {
     INAPPROPRIATE: "inappropriate",
     SPAM: "spam",
     HARASSMENT: "harassment",
     MISINFORMATION: "misinformation",
+};
+
+export const REPORT_STATUS = {
+    PENDING: "pending",
+    REVIEWED: "reviewed",
+    ACTIONED: "actioned",
+};
+
+export const REPORT_ACTION = {
+    BAN: "ban",
+    MUTE: "mute",
+    DELETE: "delete",
+    WARNING: "warning",
+    IGNORE: "ignore",
+};
+
+export const REPORT_TARGET_TYPE = {
+    USER: "user",
+    CHAIN: "chain",
+    CHALLENGE: "challenge",
 };
 
 // STATEMENT
@@ -87,4 +120,11 @@ export const NOTIFICATION_CATEGORY = {
     USER: "user",
     MODERATION: "moderation",
     ANALYTICS: "analytics",
+};
+
+// GAME
+export const GAME_STATUS = {
+    DRAFT: "draft",
+    LIVE: "live",
+    ENDED: "ended",
 };

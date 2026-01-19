@@ -16,6 +16,9 @@ import chainRoutes from "./modules/chains/chain.routes.js";
 import challengeRoutes from "./modules/challenges/challenge.routes.js";
 import statementRoutes from "./modules/statements/statement.routes.js";
 import notificationRoutes from "./modules/notifications/notification.routes.js";
+import reportRoutes from "./modules/reports/report.routes.js";
+import subscriptionRoutes from "./modules/subscriptions/subscription.routes.js";
+import gameRoutes from "./modules/games/game.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,3 +65,6 @@ await app.register(chainRoutes);
 await app.register(challengeRoutes);
 await app.register(statementRoutes);
 await app.register(notificationRoutes);
+await app.register(reportRoutes);
+await app.register(subscriptionRoutes);
+await app.register(gameRoutes);

@@ -22,7 +22,6 @@ const StatementSchema = new mongoose.Schema(
 
 const ChallengeSchema = new mongoose.Schema(
     {
-        // 🔗 Relations
         chain_id: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Chain",
@@ -44,7 +43,12 @@ const ChallengeSchema = new mongoose.Schema(
             index: true,
         },
 
-        // 🧠 Core content
+        prompt: {
+            type: String,
+            default: null,
+            trim: true,
+        },
+
         statements: {
             type: [StatementSchema],
             validate: {
@@ -56,7 +60,6 @@ const ChallengeSchema = new mongoose.Schema(
             },
         },
 
-        // 🎭 Optional metadata
         theme: {
             type: String,
             default: null,
@@ -68,7 +71,6 @@ const ChallengeSchema = new mongoose.Schema(
             voice_url: { type: String, default: null },
         },
 
-        // 🌍 Visibility
         visibility: {
             type: String,
             enum: Object.values(CHALLENGE_VISIBILITY),
@@ -76,7 +78,6 @@ const ChallengeSchema = new mongoose.Schema(
             index: true,
         },
 
-        // 📊 Stats (VERY IMPORTANT)
         total_guesses: {
             type: Number,
             default: 0,
@@ -87,7 +88,6 @@ const ChallengeSchema = new mongoose.Schema(
             default: 0,
         },
 
-        // 🚦 Status & moderation
         status: {
             type: String,
             enum: Object.values(CHALLENGE_STATUS),
@@ -95,10 +95,15 @@ const ChallengeSchema = new mongoose.Schema(
             index: true,
         },
 
-        is_reported: {  
+        is_reported: {
             type: Boolean,
             default: false,
             index: true,
+        },
+
+        reported_count: {
+            type: Number,
+            default: 0,
         },
     },
     {

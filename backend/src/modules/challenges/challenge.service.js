@@ -1,6 +1,7 @@
 import Challenge from "./challenge.model.js";
 import Chain from "../chains/chain.model.js";
 import User from "../users/user.model.js";
+import ChallengeGuess from "./challenge-guess.model.js";
 import { notifyChallengeCreated } from "../../utils/notifications.js";
 import { CHALLENGE_VISIBILITY, CHAIN_VISIBILITY, CHALLENGE_STATUS } from "../../constants/enums.js";
 
@@ -210,4 +211,22 @@ export const shareChallenge = async (userId, challengeId, payload) => {
 
   await challenge.save();
   return challenge;
+};
+
+export const submitGuessChallenge = async ({ challengeId, userId, selectedIndex }) => {
+  const challenge = await Challenge.findById(challengeId);
+  if (!challenge) throw new Error("Challenge not found");
+
+  const correctIndex = challenge.statements.findIndex((s) => s.is_cap);
+  const isCorrect = selectedIndex === correctIndex;
+
+  const guess = await ChallengeGuess.create({
+    challenge_id: challengeId,
+    user_id: userId,
+    selected_index: selectedIndex,
+    is_correct: isCorrect,
+    points_earned: isCorrect ? 10 : 0,
+  });
+
+  return guess;
 };

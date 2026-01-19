@@ -77,6 +77,17 @@ const ChainSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+
+    is_reported: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    reported_count: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -87,5 +98,6 @@ ChainSchema.index({ title: 1 });
 ChainSchema.index({ starter_id: 1 });
 ChainSchema.index({ visibility: 1 });
 ChainSchema.index({ createdAt: -1 });
+ChainSchema.index({ is_reported: 1 });
 
 export default mongoose.model("Chain", ChainSchema);

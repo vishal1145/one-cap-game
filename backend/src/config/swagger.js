@@ -17,6 +17,11 @@ export const swaggerOptions = {
         { name: "Chains", description: "Chain & virality APIs" },
         { name: "Challenges", description: "Cap challenges" },
         { name: "Admin", description: "Admin-only APIs" },
+        { name: "Reports", description: "Report management" },
+        { name: "Statements", description: "Statement management" },
+        { name: "Notifications", description: "Notification management" },
+        { name: "Subscriptions", description: "Subscription management" },
+        { name: "Games", description: "Game management" },
       ],
       components: {
         securitySchemes: {

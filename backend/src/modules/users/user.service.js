@@ -1,5 +1,6 @@
 import User from "./user.model.js";
 import { USER_STATUS, USER_ROLES } from "../../constants/enums.js";
+import { notifyUserStatusChange } from "../../utils/notifications.js";
 
 export const fetchUsers = async ({
     page = 1,
@@ -107,11 +108,30 @@ export const updateUserStatus = async (userId, status) => {
     throw new Error("Invalid status");
   }
 
-  return User.findByIdAndUpdate(
+  const user = await User.findById(userId).select("username status").lean();
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const previousStatus = user.status;
+
+  const updatedUser = await User.findByIdAndUpdate(
     userId,
     { status },
     { new: true }
   ).select("-password_hash");
+
+  await notifyUserStatusChange(userId, user.username, status);
+
+  // Create notifications for ban/unban
+  // if (status === USER_STATUS.BANNED) {
+  //   await notifyUserBanned(userId, user.username);
+  // } else if (status === USER_STATUS.ACTIVE && previousStatus !== USER_STATUS.ACTIVE) {
+  //   // User was unbanned (status changed from banned/shadow_banned to active)
+  //   await notifyUserUnbanned(userId, user.username);
+  // }
+
+  return updatedUser;
 };
 
 export const getUserById = async ({ requester, targetUserId }) => {

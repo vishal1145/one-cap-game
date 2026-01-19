@@ -21,6 +21,7 @@ export default async function challengeRoutes(app) {
           type: "object",
           required: ["statements"],
           properties: {
+            prompt: { type: "string" },
             chain_id: { type: "string" },
             parent_challenge_id: { type: "string" },
             statements: {
@@ -195,5 +196,23 @@ export default async function challengeRoutes(app) {
     },
     ChallengeController.shareChallenge
   );
-  
+
+  // Submit guess challenge (User only)
+  app.post(
+    "/challenges/:id/guess",
+    {
+      preHandler: [authMiddleware],
+      schema: {
+        tags: ["Challenges", "Games"],
+        summary: "Submit guess challenge (User only)",
+        body: {
+          type: "object",
+          properties: {
+            selected_index: { type: "number" },
+          },
+        },
+      },
+    },
+    ChallengeController.submitGuessChallenge
+  );
 }

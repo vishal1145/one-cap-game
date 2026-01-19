@@ -204,3 +204,103 @@ export const notifyHighReportCount = async (userId, username, reportCount) => {
     related_entity_id: userId,
   });
 };
+
+/**
+ * Create notification when a challenge is reported
+ * @param {string} challengeId - Challenge ID
+ * @param {string} reporterId - User ID who reported
+ * @param {string} reporterUsername - Username who reported
+ * @param {string} reason - Report reason
+ * @param {string} challengeCreatorId - Challenge creator ID
+ * @param {string} challengeCreatorUsername - Challenge creator username
+ * @returns {Promise<Object>} Created notification
+ */
+export const notifyChallengeReported = async (challengeId, reporterId, reporterUsername, reason, challengeCreatorId, challengeCreatorUsername) => {
+  // System-wide notification for admins
+  await createNotification({
+    title: "Challenge Reported",
+    message: `User "${reporterUsername || "User"}" has reported a challenge created by "${challengeCreatorUsername || "User"}". Reason: ${reason}`,
+    type: NOTIFICATION_TYPE.WARNING,
+    category: NOTIFICATION_CATEGORY.MODERATION,
+    recipient_id: null, // System-wide for admins
+    related_entity_type: "challenge",
+    related_entity_id: challengeId,
+  });
+
+  // Notification for challenge creator
+  await createNotification({
+    title: "Your Challenge Has Been Reported",
+    message: `Your challenge has been reported for: ${reason}. Our team will review it shortly.`,
+    type: NOTIFICATION_TYPE.WARNING,
+    category: NOTIFICATION_CATEGORY.MODERATION,
+    recipient_id: challengeCreatorId,
+    related_entity_type: "challenge",
+    related_entity_id: challengeId,
+  });
+};
+
+/**
+ * Create notification when subscription is created successfully
+ * @param {string} subscriptionId - Subscription ID
+ * @param {string} userId - User ID
+ * @param {string} username - Username
+ * @param {string} plan - Plan type (monthly/yearly)
+ * @param {string} paymentProvider - Payment provider
+ * @returns {Promise<Object>} Created notification
+ */
+export const notifySubscriptionCreated = async (subscriptionId, userId, username, plan, paymentProvider) => {
+  // System-wide notification for admins
+  await createNotification({
+    title: "New Subscription Purchase",
+    message: `User "${username || "User"}" has purchased a ${plan} subscription via ${paymentProvider}`,
+    type: NOTIFICATION_TYPE.SUCCESS,
+    category: NOTIFICATION_CATEGORY.ANALYTICS,
+    recipient_id: null, // System-wide for admins
+    related_entity_type: "user",
+    related_entity_id: userId,
+  });
+
+  // Notification for the user
+  await createNotification({
+    title: "Subscription Activated",
+    message: `Your ${plan} subscription has been activated successfully! Enjoy all premium features.`,
+    type: NOTIFICATION_TYPE.SUCCESS,
+    category: NOTIFICATION_CATEGORY.SYSTEM,
+    recipient_id: userId,
+    related_entity_type: "user",
+    related_entity_id: userId,
+  });
+};
+
+/**
+ * Create notification when subscription creation fails
+ * @param {string} userId - User ID
+ * @param {string} username - Username
+ * @param {string} plan - Plan type (monthly/yearly)
+ * @param {string} paymentProvider - Payment provider
+ * @param {string} errorMessage - Error message
+ * @returns {Promise<Object>} Created notification
+ */
+export const notifySubscriptionFailed = async (userId, username, plan, paymentProvider, errorMessage) => {
+  // System-wide notification for admins
+  await createNotification({
+    title: "Subscription Purchase Failed",
+    message: `User "${username || "User"}" attempted to purchase a ${plan} subscription via ${paymentProvider} but it failed. Error: ${errorMessage}`,
+    type: NOTIFICATION_TYPE.ERROR,
+    category: NOTIFICATION_CATEGORY.ANALYTICS,
+    recipient_id: null, // System-wide for admins
+    related_entity_type: "user",
+    related_entity_id: userId,
+  });
+
+  // Notification for the user
+  await createNotification({
+    title: "Subscription Purchase Failed",
+    message: `Your ${plan} subscription purchase was unsuccessful. Please try again or contact support if the issue persists.`,
+    type: NOTIFICATION_TYPE.ERROR,
+    category: NOTIFICATION_CATEGORY.SYSTEM,
+    recipient_id: userId,
+    related_entity_type: "user",
+    related_entity_id: userId,
+  });
+};
