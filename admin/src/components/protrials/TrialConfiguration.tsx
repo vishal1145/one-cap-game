@@ -6,16 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Power, Clock, Users, ArrowDown, Settings2, Save, RefreshCw } from "lucide-react";
+import { Power, Clock, Users, ArrowDown, Settings2, Save, RefreshCw, Loader2 } from "lucide-react";
 import { useTrialConfig } from "@/hooks/useTrialConfig";
 import { useState, useEffect } from "react";
 import type { Database } from "@/integrations/supabase/types";
+import  api  from "@/api/client";
+import { useToast } from "@/hooks/use-toast";
+
+
+
 
 type TrialEligibility = Database["public"]["Enums"]["trial_eligibility"];
 type DowngradeBehavior = Database["public"]["Enums"]["downgrade_behavior"];
 
+
+
 interface LocalConfig {
-  enabled: boolean;
+  pro_trial_enabled: boolean;
   trial_duration_days: number;
   eligibility: TrialEligibility;
   downgrade_behavior: DowngradeBehavior;
@@ -23,33 +30,128 @@ interface LocalConfig {
   soft_downgrade_enabled: boolean;
 }
 
+
+interface BackendTrialConfig {
+  _id: string;
+  pro_trial_enabled: boolean;
+  trial_duration_days: number;
+  paywall_after_days: number;
+  trial_eligibility: TrialEligibility;
+  downgrade_behavior: DowngradeBehavior;
+}
+
+
+
+/* ---------------- HELPERS ---------------- */
+
+const mapApiToLocalConfig = (apiData: BackendTrialConfig): LocalConfig => ({
+  pro_trial_enabled: apiData.pro_trial_enabled,
+  trial_duration_days: apiData.trial_duration_days,
+  eligibility: apiData.trial_eligibility,
+  downgrade_behavior: apiData.downgrade_behavior,
+  paywall_timing_days: apiData.paywall_after_days ?? 0,
+  soft_downgrade_enabled: apiData.downgrade_behavior === "soft_prompt",
+});
+
+const mapLocalToApiPayload = (config: LocalConfig) => ({
+  pro_trial_enabled: config.pro_trial_enabled,
+  trial_duration_days: config.trial_duration_days,
+  paywall_after_days: config.paywall_timing_days,
+  trial_eligibility: config.eligibility,
+  downgrade_behavior: config.soft_downgrade_enabled
+    ? "soft_prompt"
+    : config.downgrade_behavior,
+});
+
+
+
+
 export function TrialConfiguration() {
-  const { config, isLoading, isSaving, saveConfig } = useTrialConfig();
+  const { isLoading, isSaving, saveConfig } = useTrialConfig();
+  const { toast } = useToast();
+  const [serverConfig, setServerConfig] =   useState<BackendTrialConfig | null>(null);
+  const [config, setConfig] = useState<LocalConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [localConfig, setLocalConfig] = useState<LocalConfig>({
-    enabled: true,
+    pro_trial_enabled: true,
     trial_duration_days: 3,
     eligibility: "new_users",
     downgrade_behavior: "automatic",
     paywall_timing_days: 0,
     soft_downgrade_enabled: true,
   });
+  const [saving, setSaving] = useState(false);
+
+  
 
   useEffect(() => {
-    if (config) {
-      setLocalConfig({
-        enabled: config.enabled,
-        trial_duration_days: config.trial_duration_days,
-        eligibility: config.eligibility,
-        downgrade_behavior: config.downgrade_behavior,
-        paywall_timing_days: config.paywall_timing_days || 0,
-        soft_downgrade_enabled: config.soft_downgrade_enabled,
-      });
-    }
-  }, [config]);
+    const loadConfig = async () => {
+      try {
+        const res = await api.get("/admin/trial-config");
+
+        // Backend returns array → take latest
+        const latestConfig = res.data?.[0];
+
+        if (!latestConfig) {
+          throw new Error("No trial config found");
+        }
+
+        setServerConfig(latestConfig);
+        setLocalConfig(mapApiToLocalConfig(latestConfig));
+      } catch (err: any) {
+        setError("Failed to load trial configuration");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadConfig();
+  }, []);
+
+
+    /* -------- SAVE CONFIG -------- */
 
   const handleSave = async () => {
-    await saveConfig(localConfig);
-  };
+      if (!serverConfig || !localConfig) return;
+  
+      try {
+        setSaving(true);
+  
+        await api.put(
+          `/admin/trial-config/${serverConfig._id}`,
+          mapLocalToApiPayload(localConfig)
+        );
+  
+        // Sync reset state
+        setServerConfig({
+          ...serverConfig,
+          ...mapLocalToApiPayload(localConfig),
+        });
+
+        // Show success toast
+        toast({
+          title: "Configuration Saved",
+          description: "Pro trial configuration has been updated successfully.",
+          variant: "default",
+        });
+      } catch (err) {
+        setError("Failed to save configuration");
+        
+        // Show error toast
+        toast({
+          title: "Save Failed",
+          description: "Failed to save trial configuration. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  
+
+
 
   const eligibilityOptions = [
     { value: "new_users" as const, label: "New Users Only", description: "Users who have never had a trial" },
@@ -93,12 +195,12 @@ export function TrialConfiguration() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant={localConfig.enabled ? "default" : "secondary"} className="px-3 py-1">
-                {localConfig.enabled ? "Active" : "Disabled"}
+              <Badge variant={localConfig.pro_trial_enabled ? "default" : "secondary"} className="px-3 py-1">
+                {localConfig.pro_trial_enabled ? "Active" : "Disabled"}
               </Badge>
               <Switch
-                checked={localConfig.enabled}
-                onCheckedChange={(enabled) => setLocalConfig({ ...localConfig, enabled })}
+                checked={localConfig.pro_trial_enabled}
+                onCheckedChange={(pro_trial_enabled) => setLocalConfig({ ...localConfig, pro_trial_enabled })}
                 className="data-[state=checked]:bg-primary"
               />
             </div>
@@ -269,7 +371,7 @@ export function TrialConfiguration() {
           onClick={() => {
             if (config) {
               setLocalConfig({
-                enabled: config.enabled,
+                pro_trial_enabled: config.pro_trial_enabled,
                 trial_duration_days: config.trial_duration_days,
                 eligibility: config.eligibility,
                 downgrade_behavior: config.downgrade_behavior,
@@ -282,9 +384,13 @@ export function TrialConfiguration() {
           <RefreshCw className="w-4 h-4" />
           Reset
         </Button>
-        <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-          <Save className="w-4 h-4" />
-          {isSaving ? "Saving..." : "Save Configuration"}
+        <Button onClick={handleSave} disabled={saving} className="gap-2">
+          {saving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {saving ? "Saving..." : "Save Configuration"}
         </Button>
       </div>
     </div>

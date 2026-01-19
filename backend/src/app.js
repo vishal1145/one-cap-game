@@ -19,12 +19,12 @@ import notificationRoutes from "./modules/notifications/notification.routes.js";
 import reportRoutes from "./modules/reports/report.routes.js";
 import subscriptionRoutes from "./modules/subscriptions/subscription.routes.js";
 import gameRoutes from "./modules/games/game.routes.js";
+import trialConfigRoutes from "./modules/trial_config/trial_config.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import "./modules/index.js";
-
 export const app = Fastify({
     logger: true
 });
@@ -60,6 +60,7 @@ await app.register(swaggerUI, {
 });
 
 await app.register(authRoutes);
+await app.register(trialConfigRoutes);
 await app.register(userRoutes);
 await app.register(chainRoutes);
 await app.register(challengeRoutes);
