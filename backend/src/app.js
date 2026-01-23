@@ -8,6 +8,7 @@ import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 import { swaggerOptions } from "./config/swagger.js";
 import fastifyStatic from "@fastify/static";
+import multipart from "@fastify/multipart";
 import path from "path";
 import { fileURLToPath } from "url";
 import authRoutes from "./modules/auth/auth.routes.js";
@@ -20,6 +21,7 @@ import reportRoutes from "./modules/reports/report.routes.js";
 import subscriptionRoutes from "./modules/subscriptions/subscription.routes.js";
 import gameRoutes from "./modules/games/game.routes.js";
 import trialConfigRoutes from "./modules/trial_config/trial_config.routes.js";
+import uploadRoutes from "./modules/upload/upload.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,6 +44,14 @@ await app.register(cors, {
 
 await app.register(jwt, {
     secret: process.env.JWT_SECRET
+});
+
+// Register multipart for file uploads
+await app.register(multipart, {
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB max
+        files: 1, // Max 1 file per request
+    },
 });
 
 await app.register(swagger, swaggerOptions);
@@ -69,3 +79,4 @@ await app.register(notificationRoutes);
 await app.register(reportRoutes);
 await app.register(subscriptionRoutes);
 await app.register(gameRoutes);
+await app.register(uploadRoutes);

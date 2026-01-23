@@ -157,7 +157,7 @@ export const appleLogin = async ({ appleSub, email }) => {
 };
 
 export const sendOtp = async ({ phone }) => {
-    const code = "123456";//Math.floor(100000 + Math.random() * 900000).toString();
+    const code = "1234";//Math.floor(100000 + Math.random() * 900000).toString();
 
     await Otp.deleteMany({ phone });
 
